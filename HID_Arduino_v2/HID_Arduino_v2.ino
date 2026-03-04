@@ -21,7 +21,7 @@ bool moveNeeded = false;
 const float BASE_SCALE = 1.0f;  // Base movement scale (1.0 = 1:1)
 const float SPEED_SCALE = 0.4f; // Additional scaling for faster movements
 const int16_t SPEED_THRESHOLD = 100; // Threshold for speed scaling
-const float SPEED_MULTIPLIER = 1.5f; // Adjust this multiplier to change overall cursor speed (1.0 = normal)
+const float SPEED_MULTIPLIER = 1.0f; // Adjust this multiplier to change overall cursor speed (1.0 = same as normal mouse)
 
 // Button mapping - based on the HID report descriptor
 // Standard 5-button mouse uses bits 0-4 in the first byte
