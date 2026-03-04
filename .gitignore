@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+
+# Model files (large binaries)
+*.engine
+*.onnx
+*.pt
+
+# AIMbot (separate repo)
+AIMbot/
+
+# Environment
+.env

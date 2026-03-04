@@ -38,8 +38,13 @@ USBHub Hub(&Usb);
 HIDBoot<USB_HID_PROTOCOL_MOUSE> HidMouse(&Usb);
 MouseRptParser Prs;
 
+// Keep-alive to prevent USB suspend
+unsigned long lastKeepAliveTime = 0;
+constexpr unsigned long KEEP_ALIVE_MS = 1000;
+
 void setup()
-{   
+{
+    Serial.begin(115200); // Start serial for Python communication
     Usb.Init();
     HidMouse.SetReportParser(0, &Prs);
     Mouse.begin();
@@ -49,6 +54,31 @@ void loop()
 {
     // Process USB tasks immediately
     Usb.Task();
+
+    // Send keep-alive to prevent USB bus suspension
+    if (millis() - lastKeepAliveTime > KEEP_ALIVE_MS)
+    {
+        lastKeepAliveTime = millis();
+        Mouse.move(0, 0, 0);
+    }
+
+    // Read serial commands
+    static char cmdBuf[32];
+    static uint8_t idx = 0;
+    while (Serial.available())
+    {
+        char c = Serial.read();
+        if (c == '\n' || c == '\r')
+        {
+            cmdBuf[idx] = '\0';
+            if (idx > 0) handleCommand(cmdBuf);
+            idx = 0;
+        }
+        else if (idx < 31)
+        {
+            cmdBuf[idx++] = c;
+        }
+    }
 
     // Apply accumulated movements when needed
     if (moveNeeded) {
@@ -160,5 +190,56 @@ inline void ProcessButton(bool prevPressed, bool newPressed, uint8_t buttonBit, 
         else
             Mouse.release(reportButton);
     }
+}
+
+// ============================================================================
+// Serial Command Handlers
+// ============================================================================
+
+typedef void(*CmdFunc)(const char*);
+
+struct CmdEntry { char code; CmdFunc fn; };
+
+static void cmdClick(const char*) { Mouse.click(); }
+static void cmdPress(const char*) { Mouse.press(MOUSE_LEFT); }
+static void cmdRelease(const char*) { Mouse.release(MOUSE_LEFT); }
+static void cmdMove(const char* params);
+static void cmdStatus(const char*);
+
+static const CmdEntry COMMANDS[] = {
+    { 'c', cmdClick },
+    { 'p', cmdPress },
+    { 'r', cmdRelease },
+    { 'm', cmdMove },
+    { '?', cmdStatus },
+};
+
+static void handleCommand(const char *cmd)
+{
+    if (cmd[0] == '\0') return;
+
+    for (const auto &e : COMMANDS)
+    {
+        if (cmd[0] == e.code)
+        {
+            e.fn(&cmd[1]);
+            return;
+        }
+    }
+}
+
+static void cmdMove(const char *params)
+{
+    if (*params == '\0') return;
+    char *endPtr;
+    long x = strtol(params, &endPtr, 10);
+    if (*endPtr != ',') return;
+    long y = strtol(endPtr + 1, nullptr, 10);
+    Mouse.move((int)x, (int)y, 0);
+}
+
+static void cmdStatus(const char *)
+{
+    Serial.println("OK");
 }
 
